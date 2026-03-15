@@ -1,0 +1,15 @@
+{
+  "name": "busanedu",
+  "version": "1.0.0",
+  "description": "부산시 교육지원청 공지사항 크롤러",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "puppeteer": "^21.0.0",
+    "cors": "^2.8.5"
+  }
+}

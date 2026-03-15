@@ -1,21 +1,9 @@
-const EDUCATION_OFFICES = [
-    { name: '동래교육지원청', url: 'https://home.pen.go.kr/dongnae/na/ntt/selectNttList.do?mi=11258&bbsId=3629' },
-    { name: '북부교육지원청', url: 'https://home.pen.go.kr/bukbu/na/ntt/selectNttList.do?mi=12811&bbsId=3715' },
-    { name: '남부교육지원청', url: 'https://home.pen.go.kr/nambu/na/ntt/selectNttList.do?mi=11858&bbsId=3840' },
-    { name: '해운대교육지원청', url: 'https://home.pen.go.kr/haeundae/na/ntt/selectNttList.do?mi=11321&bbsId=4290' },
-    { name: '서부교육지원청', url: 'https://home.pen.go.kr/seobu/na/ntt/selectNttList.do?mi=9479&bbsId=3602' }
-];
-
-const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+const API_URL = 'http://localhost:3000/api/notices';
 const DAYS_FILTER = 10;
 
-function parseDate(dateStr) {
-    const cleaned = dateStr.trim().replace(/\./g, '-').replace(/-$/, '');
-    return new Date(cleaned);
-}
-
 function getDaysDiff(dateStr) {
-    const noticeDate = parseDate(dateStr);
+    const cleaned = dateStr.trim().replace(/\./g, '-').replace(/-$/, '');
+    const noticeDate = new Date(cleaned);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     noticeDate.setHours(0, 0, 0, 0);
@@ -27,62 +15,24 @@ function isWithinDays(dateStr, days) {
     return getDaysDiff(dateStr) <= days;
 }
 
-function extractNotices(html) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const notices = [];
-    
-    const rows = doc.querySelectorAll('tbody tr');
-    
-    rows.forEach(row => {
-        const titleEl = row.querySelector('.ta_l a');
-        const dateEl = row.querySelector('td:nth-child(4)');
-        
-        if (titleEl && dateEl) {
-            const title = titleEl.textContent.trim();
-            const date = dateEl.textContent.trim();
-            
-            if (title && date) {
-                notices.push({
-                    title: title,
-                    date: date,
-                    daysAgo: getDaysDiff(date)
-                });
-            }
-        }
-    });
-    
-    return notices;
-}
-
-async function fetchNotices(office) {
+async function fetchNotices() {
     try {
-        const response = await fetch(CORS_PROXY + encodeURIComponent(office.url));
+        const response = await fetch(API_URL);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const html = await response.text();
-        const allNotices = extractNotices(html);
+        const result = await response.json();
         
-        const filteredNotices = allNotices.filter(notice => 
-            isWithinDays(notice.date, DAYS_FILTER)
-        );
+        if (!result.success) {
+            throw new Error(result.error || 'Unknown error');
+        }
         
-        return {
-            office: office.name,
-            notices: filteredNotices,
-            success: true
-        };
+        return result.data;
     } catch (error) {
-        console.error(`Error fetching ${office.name}:`, error);
-        return {
-            office: office.name,
-            notices: [],
-            success: false,
-            error: error.message
-        };
+        console.error('Error fetching notices:', error);
+        throw error;
     }
 }
 
@@ -90,9 +40,13 @@ function createNoticeItem(notice) {
     const li = document.createElement('li');
     li.className = 'notice-item' + (notice.daysAgo === 0 ? ' new' : '');
     
+    const linkHtml = notice.link 
+        ? `<a href="${notice.link}" target="_blank" rel="noopener noreferrer">${notice.title}</a>`
+        : `<a href="#" onclick="alert('해당 공지사항은 원본 페이지를 확인해주세요.')">${notice.title}</a>`;
+    
     li.innerHTML = `
         <div class="notice-title">
-            <a href="#" onclick="alert('해당 공지사항은 원본 페이지를 확인해주세요.')">${notice.title}</a>
+            ${linkHtml}
         </div>
         <div class="notice-meta">
             ${notice.daysAgo === 0 ? '<span class="notice-badge">NEW</span>' : ''}
@@ -139,7 +93,7 @@ function renderResults(results) {
             `;
         } else if (result.notices.length === 0) {
             list.innerHTML = `
-                <li class="no-notices">최근 ${DAYS_FILTER}일 내 공지사항이 없습니다</li>
+                <li class="no-notices">${DAYS_FILTER}일 내 공지사항이 없습니다</li>
             `;
         } else {
             hasAnyNotices = true;
@@ -158,7 +112,7 @@ function renderResults(results) {
         noData.className = 'no-notices';
         noData.style.textAlign = 'center';
         noData.style.padding = '3rem';
-        noData.textContent = '최근 10일 내 등록된 공지사항이 없습니다';
+        noData.textContent = `${DAYS_FILTER}일 내 등록된 공지사항이 없습니다`;
         container.appendChild(noData);
     }
 }
@@ -169,22 +123,30 @@ async function fetchAllNotices() {
     container.innerHTML = `
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p>데이터를 불러오는 중...</p>
+            <p>서버에서 데이터를 불러오는 중...</p>
         </div>
     `;
     
-    const results = await Promise.all(
-        EDUCATION_OFFICES.map(office => fetchNotices(office))
-    );
-    
-    renderResults(results);
-    
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('ko-KR', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-    });
-    document.getElementById('lastUpdate').textContent = `마지막 업데이트: ${timeStr}`;
+    try {
+        const results = await fetchNotices();
+        renderResults(results);
+        
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('ko-KR', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        document.getElementById('lastUpdate').textContent = `마지막 업데이트: ${timeStr}`;
+    } catch (error) {
+        const container = document.getElementById('noticesContainer');
+        container.innerHTML = `
+            <div class="error-message">
+                데이터 로드 실패: ${error.message}<br>
+                서버가 실행 중인지 확인해주세요.<br>
+                <small>npm start</small>
+            </div>
+        `;
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

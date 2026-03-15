@@ -14,21 +14,29 @@
 - 해운대교육지원청
 - 서부교육지원청
 
-## 사용 방법
+## 설치 및 실행
 
 ```bash
-# 클론
-git clone https://github.com/hjin118/busanedu.git
+# 의존성 설치
+npm install
 
-# 실행
-index.html 파일을 브라우저에서 열면 됩니다.
+# 서버 실행
+npm start
 ```
+
+서버 실행 후 브라우저에서 http://localhost:3000 에 접속하면 됩니다.
+
+## API
+
+- `GET /api/notices` - 모든 교육지원청 공지사항 조회
+- `GET /api/offices` - 교육지원청 목록 조회
 
 ## 기술 스택
 
-- HTML5
-- CSS3
-- JavaScript (Vanilla)
+- Node.js
+- Express
+- Puppeteer (크롤링)
+- HTML5 / CSS3 / JavaScript
 
 ## 라이선스
 
