@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>부산시 교육지원청 공지사항</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xeicon@2.3.3/xeicon.min.css">
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <h1><i class="xi-school"></i> 부산시 교육지원청 공지사항</h1>
+            <p class="subtitle">5개 교육지원청 실시간 공지사항 확인</p>
+        </div>
+    </header>
+
+    <main>
+        <div class="controls">
+            <button id="refreshBtn" class="refresh-btn">
+                <i class="xi-refresh"></i> 새로고침
+            </button>
+            <span id="lastUpdate" class="last-update"></span>
+        </div>
+
+        <div class="notices-container" id="noticesContainer">
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>데이터를 불러오는 중...</p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>데이터 출처: 부산광역시교육청 각 교육지원청 공지사항</p>
+    </footer>
+
+    <script src="main.js"></script>
+</body>
+</html>
