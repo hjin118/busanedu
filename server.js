@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const puppeteer = require('puppeteer');
+const axios = require('axios');
+const cheerio = require('cheerio');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,51 +34,45 @@ function getDaysDiff(dateStr) {
 }
 
 async function fetchNotices(office) {
-    let browser;
     try {
-        browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        const response = await axios.get(office.url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            timeout: 10000
         });
 
-        const page = await browser.newPage();
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-        
-        await page.goto(office.url, { waitUntil: 'networkidle2', timeout: 30000 });
+        const $ = cheerio.load(response.data);
+        const results = [];
 
-        const notices = await page.evaluate((baseUrl) => {
-            const rows = document.querySelectorAll('tbody tr');
-            const results = [];
-            
-            rows.forEach(row => {
-                const titleEl = row.querySelector('.ta_l a');
-                const dateEl = row.querySelector('td:nth-child(4)');
-                const writerEl = row.querySelector('td:nth-child(3)');
-                
-                if (titleEl && dateEl) {
-                    const title = titleEl.textContent.trim();
-                    const date = dateEl.textContent.trim();
-                    const writer = writerEl ? writerEl.textContent.trim() : '';
-                    const link = titleEl.getAttribute('href');
-                    
-                    if (title && date) {
-                        results.push({
-                            title: title,
-                            date: date,
-                            writer: writer,
-                            link: link ? (link.startsWith('http') ? link : baseUrl + link) : null
-                        });
-                    }
+        $('tbody tr').each((i, row) => {
+            const titleEl = $(row).find('.ta_l a');
+            const dateEl = $(row).find('td:nth-child(4)');
+            const writerEl = $(row).find('td:nth-child(3)');
+
+            if (titleEl.length && dateEl.length) {
+                const title = titleEl.text().trim();
+                const date = dateEl.text().trim();
+                const writer = writerEl.length ? writerEl.text().trim() : '';
+                let link = titleEl.attr('href');
+
+                if (title && date) {
+                    results.push({
+                        title,
+                        date,
+                        writer,
+                        link: link ? (link.startsWith('http') ? link : office.baseUrl + link) : null
+                    });
                 }
-            });
-            
-            return results;
-        }, office.baseUrl);
+            }
+        });
 
-        const filteredNotices = notices.map(notice => ({
-            ...notice,
-            daysAgo: getDaysDiff(notice.date)
-        })).filter(notice => notice.daysAgo <= DAYS_FILTER);
+        const filteredNotices = results
+            .map(notice => ({
+                ...notice,
+                daysAgo: getDaysDiff(notice.date)
+            }))
+            .filter(notice => notice.daysAgo <= DAYS_FILTER);
 
         return {
             office: office.name,
@@ -92,10 +87,6 @@ async function fetchNotices(office) {
             success: false,
             error: error.message
         };
-    } finally {
-        if (browser) {
-            await browser.close();
-        }
     }
 }
 
